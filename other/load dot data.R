@@ -117,7 +117,7 @@ for(i in rev(2010:2023)){
   ntd<-ntd[!duplicated(ntd),]
   ntd$uace_code<-str_pad(ntd$uace_code,width=5,side="left",pad="0")
   uace<-tigris::urban_areas(year=2022)#only 2022 should be used
-  ntd<-merge(uace[,c("UACE10","GEOID10","ALAND10","geometry")],ntd,by.x="UACE10",by.y="uace_code",all.x=T)
+#  ntd<-merge(uace[,c("UACE10","GEOID10","ALAND10","geometry")],ntd,by.x="UACE10",by.y="uace_code",all.x=T)
   saveRDS(ntd,paste0("shape_ntd_",i,".rds"))
 }
 
