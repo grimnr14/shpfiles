@@ -3,10 +3,11 @@ setwd("C:/Users/chris/Downloads")
 library(tidyverse)
 library(stringr)
 library(sf)
+library(readxl)
 source("C:/Users/chris/OneDrive/Desktop/GeoHealth/scripts/pullACS/pullACS.R")
 
 #NHTSA FARS safety, pedestrians and impairment info: MAY INCLUDE DRUGS, VISION, DISTRACTED DRIVING, WEATHER EVENTS
-for(i in rev(2010:2023)){
+for(i in rev(2021:2023)){
   url<-paste0("https://static.nhtsa.gov/nhtsa/downloads/FARS/",i,"/National/FARS",i,"NationalCSV.zip")#example call to FTP
   download.file(url,destfile="temp.zip")
   unzip("temp.zip")
@@ -76,36 +77,49 @@ for(i in rev(2010:2023)){
     outs<-rbind(outs,ex)
     print(j)
   }
-  outs<-merge(outs,fars,by="ST_CASE",all.x=T)
-  saveRDS(outs,paste0("fars_shapes_",i,".rds"))
+#  outs<-merge(outs,fars,by="ST_CASE",all.x=T)
+#  saveRDS(outs,paste0("fars_shapes_",i,".rds"))
+  write.table(fars,paste0("fars_shapes_",i,".csv"),sep=",",col.names=T,row.names=F)
+  
 }
 
-
 #FTA NTD transit access, expense, ridership and infrastructure data: MAY INCLUDE VEHICLE AGE AND WEAR (MILES) BY AGENCY
-for(i in rev(2010:2023)){
-  url<-paste0("https://data.transportation.gov/resource/ekg5-frzt.csv?$query=SELECT%0A%20%20%60agency%60%2C%0A%20%20%60city%60%2C%0A%20%20%60state%60%2C%0A%20%20%60ntd_id%60%2C%0A%20%20%60organization_type%60%2C%0A%20%20%60reporter_type%60%2C%0A%20%20%60report_year%60%2C%0A%20%20%60uace_code%60%2C%0A%20%20%60uza_name%60%2C%0A%20%20%60primary_uza_population%60%2C%0A%20%20%60agency_voms%60%2C%0A%20%20%60mode%60%2C%0A%20%20%60mode_name%60%2C%0A%20%20%60type_of_service%60%2C%0A%20%20%60mode_voms%60%2C%0A%20%20%60fare_revenues_per_unlinked%60%2C%0A%20%20%60fare_revenues_per_unlinked_1%60%2C%0A%20%20%60fare_revenues_per_total%60%2C%0A%20%20%60fare_revenues_per_total_1%60%2C%0A%20%20%60cost_per_hour%60%2C%0A%20%20%60cost_per_hour_questionable%60%2C%0A%20%20%60passengers_per_hour%60%2C%0A%20%20%60passengers_per_hour_1%60%2C%0A%20%20%60cost_per_passenger%60%2C%0A%20%20%60cost_per_passenger_1%60%2C%0A%20%20%60cost_per_passenger_mile%60%2C%0A%20%20%60cost_per_passenger_mile_1%60%2C%0A%20%20%60fare_revenues_earned%60%2C%0A%20%20%60fare_revenues_earned_1%60%2C%0A%20%20%60total_operating_expenses%60%2C%0A%20%20%60total_operating_expenses_1%60%2C%0A%20%20%60unlinked_passenger_trips%60%2C%0A%20%20%60unlinked_passenger_trips_1%60%2C%0A%20%20%60vehicle_revenue_hours%60%2C%0A%20%20%60vehicle_revenue_hours_1%60%2C%0A%20%20%60passenger_miles%60%2C%0A%20%20%60passenger_miles_questionable%60%2C%0A%20%20%60vehicle_revenue_miles%60%2C%0A%20%20%60vehicle_revenue_miles_1%60%0AWHERE%20caseless_one_of(%60report_year%60%2C%20%22",i,"%22)%20limit%205000")
-  download.file(url,destfile="temp.csv")#MUST LOOP THROUGH THE NDT ASSET NAMES WHICH VARY BY YEAR
-  ntd1<-read.csv("./temp.csv",header=T)#multiple transit systems to uace. needs mapping to fips codes and zcta5
-  url<-paste0("https://data.transportation.gov/resource/wwdp-t4re.csv?$query=SELECT%0A%20%20%60agency%60%2C%0A%20%20%60_5_digit_ntd_id%60%2C%0A%20%20%60reporter_type%60%2C%0A%20%20%60organization_type%60%2C%0A%20%20%60city%60%2C%0A%20%20%60state%60%2C%0A%20%20%60report_year%60%2C%0A%20%20%60agency_voms%60%2C%0A%20%20%60mode%60%2C%0A%20%20%60mode_name%60%2C%0A%20%20%60type_of_service%60%2C%0A%20%20%60mode_voms%60%2C%0A%20%20%60mode_voms_questionable%60%2C%0A%20%20%60primary_uza_code%60%2C%0A%20%20%60primary_uza_name%60%2C%0A%20%20%60primary_uza_area_sq_miles%60%2C%0A%20%20%60primary_uza_population%60%2C%0A%20%20%60service_area_sq_miles%60%2C%0A%20%20%60service_area_population%60%2C%0A%20%20%60time_period%60%2C%0A%20%20%60time_service_begins%60%2C%0A%20%20%60time_service_ends%60%2C%0A%20%20%60actual_vehicles_passenger_car_miles%60%2C%0A%20%20%60vehicle_miles_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_car_revenue_miles%60%2C%0A%20%20%60vehicle_revenue_miles_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_deadhead_miles%60%2C%0A%20%20%60deadhead_miles_questionable%60%2C%0A%20%20%60scheduled_vehicles_passenger_car_revenue_miles%60%2C%0A%20%20%60scheduled_revenue_miles_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_car_hours%60%2C%0A%20%20%60vehicle_hours_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_car_revenue_hours%60%2C%0A%20%20%60vehicle_revenue_hours_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_car_deadhead_hours%60%2C%0A%20%20%60deadhead_hours_questionable%60%2C%0A%20%20%60charter_service_hours%60%2C%0A%20%20%60school_bus_hours%60%2C%0A%20%20%60trains_in_operation%60%2C%0A%20%20%60trains_in_operation_questionable%60%2C%0A%20%20%60train_miles%60%2C%0A%20%20%60train_miles_questionable%60%2C%0A%20%20%60train_revenue_miles%60%2C%0A%20%20%60train_revenue_miles_questionable%60%2C%0A%20%20%60train_deadhead_miles%60%2C%0A%20%20%60train_hours%60%2C%0A%20%20%60train_hours_questionable%60%2C%0A%20%20%60train_revenue_hours%60%2C%0A%20%20%60train_revenue_hours_questionable%60%2C%0A%20%20%60train_deadhead_hours%60%2C%0A%20%20%60unlinked_passenger_trips_upt%60%2C%0A%20%20%60unlinked_passenger_trips_questionable%60%2C%0A%20%20%60ada_upt%60%2C%0A%20%20%60sponsored_service_upt%60%2C%0A%20%20%60passenger_miles%60%2C%0A%20%20%60passenger_miles_questionable%60%2C%0A%20%20%60directional_route_miles%60%2C%0A%20%20%60directional_route_miles_questionable%60%2C%0A%20%20%60brt_non_statutory_mixed_traffic%60%2C%0A%20%20%60mixed_traffic_right_of_way%60%2C%0A%20%20%60days_of_service_operated%60%2C%0A%20%20%60days_not_operated_strikes%60%2C%0A%20%20%60days_not_operated_emergencies%60%2C%0A%20%20%60average_speed%60%2C%0A%20%20%60average_speed_questionable%60%2C%0A%20%20%60average_passenger_trip_length_aptl_%60%2C%0A%20%20%60aptl_questionable%60%2C%0A%20%20%60passengers_per_hour%60%2C%0A%20%20%60passengers_per_hour_questionable%60%0AWHERE%20caseless_one_of(%60report_year%60%2C%20%22",i,"%22)%20limit%2015000")
-  download.file(url,destfil="temp.csv")
-  ntd2<-read.csv("./temp.csv",header=T)#additional details and metrics for services available by NTD_ID and UACE
-  url<-paste0("https://data.transportation.gov/resource/wfz2-eft6.csv?$query=SELECT%0A%20%20%60agency%60%2C%0A%20%20%60city%60%2C%0A%20%20%60state%60%2C%0A%20%20%60ntd_id%60%2C%0A%20%20%60organization_type%60%2C%0A%20%20%60reporter_type%60%2C%0A%20%20%60report_year%60%2C%0A%20%20%60uace_code%60%2C%0A%20%20%60uza_name%60%2C%0A%20%20%60primary_uza_population%60%2C%0A%20%20%60agency_voms%60%2C%0A%20%20%60modes%60%2C%0A%20%20%60mode_names%60%2C%0A%20%20%60facility_type%60%2C%0A%20%20%60pre1940%60%2C%0A%20%20%60_1940s%60%2C%0A%20%20%60_1950s%60%2C%0A%20%20%60_1960s%60%2C%0A%20%20%60_1970s%60%2C%0A%20%20%60_1980s%60%2C%0A%20%20%60_1990s%60%2C%0A%20%20%60_2000s%60%2C%0A%20%20%60_2010s%60%2C%0A%20%20%60_2020s%60%2C%0A%20%20%60total_facilities%60%0AWHERE%20caseless_one_of(%60report_year%60%2C%20%22",i,"%22)%20limit%2010000")
-  download.file(url,destfil="temp.csv")
-  ntd3<-read.csv("./temp.csv",header=T)#additional details and metrics for services available by NTD_ID and UACE
+for(i in rev(2022:2023)){
+#  url<-paste0("https://data.transportation.gov/resource/ekg5-frzt.csv?$query=SELECT%0A%20%20%60agency%60%2C%0A%20%20%60city%60%2C%0A%20%20%60state%60%2C%0A%20%20%60ntd_id%60%2C%0A%20%20%60organization_type%60%2C%0A%20%20%60reporter_type%60%2C%0A%20%20%60report_year%60%2C%0A%20%20%60uace_code%60%2C%0A%20%20%60uza_name%60%2C%0A%20%20%60primary_uza_population%60%2C%0A%20%20%60agency_voms%60%2C%0A%20%20%60mode%60%2C%0A%20%20%60mode_name%60%2C%0A%20%20%60type_of_service%60%2C%0A%20%20%60mode_voms%60%2C%0A%20%20%60fare_revenues_per_unlinked%60%2C%0A%20%20%60fare_revenues_per_unlinked_1%60%2C%0A%20%20%60fare_revenues_per_total%60%2C%0A%20%20%60fare_revenues_per_total_1%60%2C%0A%20%20%60cost_per_hour%60%2C%0A%20%20%60cost_per_hour_questionable%60%2C%0A%20%20%60passengers_per_hour%60%2C%0A%20%20%60passengers_per_hour_1%60%2C%0A%20%20%60cost_per_passenger%60%2C%0A%20%20%60cost_per_passenger_1%60%2C%0A%20%20%60cost_per_passenger_mile%60%2C%0A%20%20%60cost_per_passenger_mile_1%60%2C%0A%20%20%60fare_revenues_earned%60%2C%0A%20%20%60fare_revenues_earned_1%60%2C%0A%20%20%60total_operating_expenses%60%2C%0A%20%20%60total_operating_expenses_1%60%2C%0A%20%20%60unlinked_passenger_trips%60%2C%0A%20%20%60unlinked_passenger_trips_1%60%2C%0A%20%20%60vehicle_revenue_hours%60%2C%0A%20%20%60vehicle_revenue_hours_1%60%2C%0A%20%20%60passenger_miles%60%2C%0A%20%20%60passenger_miles_questionable%60%2C%0A%20%20%60vehicle_revenue_miles%60%2C%0A%20%20%60vehicle_revenue_miles_1%60%0AWHERE%20caseless_one_of(%60report_year%60%2C%20%22",i,"%22)%20limit%205000")
+#  download.file(url,destfile="temp.csv")#MUST LOOP THROUGH THE NDT ASSET NAMES WHICH VARY BY YEAR
+#  ntd1<-read.csv("./temp.csv",header=T)#multiple transit systems to uace. needs mapping to fips codes and zcta5
+#  url<-paste0("https://data.transportation.gov/resource/wwdp-t4re.csv?$query=SELECT%0A%20%20%60agency%60%2C%0A%20%20%60_5_digit_ntd_id%60%2C%0A%20%20%60reporter_type%60%2C%0A%20%20%60organization_type%60%2C%0A%20%20%60city%60%2C%0A%20%20%60state%60%2C%0A%20%20%60report_year%60%2C%0A%20%20%60agency_voms%60%2C%0A%20%20%60mode%60%2C%0A%20%20%60mode_name%60%2C%0A%20%20%60type_of_service%60%2C%0A%20%20%60mode_voms%60%2C%0A%20%20%60mode_voms_questionable%60%2C%0A%20%20%60primary_uza_code%60%2C%0A%20%20%60primary_uza_name%60%2C%0A%20%20%60primary_uza_area_sq_miles%60%2C%0A%20%20%60primary_uza_population%60%2C%0A%20%20%60service_area_sq_miles%60%2C%0A%20%20%60service_area_population%60%2C%0A%20%20%60time_period%60%2C%0A%20%20%60time_service_begins%60%2C%0A%20%20%60time_service_ends%60%2C%0A%20%20%60actual_vehicles_passenger_car_miles%60%2C%0A%20%20%60vehicle_miles_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_car_revenue_miles%60%2C%0A%20%20%60vehicle_revenue_miles_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_deadhead_miles%60%2C%0A%20%20%60deadhead_miles_questionable%60%2C%0A%20%20%60scheduled_vehicles_passenger_car_revenue_miles%60%2C%0A%20%20%60scheduled_revenue_miles_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_car_hours%60%2C%0A%20%20%60vehicle_hours_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_car_revenue_hours%60%2C%0A%20%20%60vehicle_revenue_hours_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_car_deadhead_hours%60%2C%0A%20%20%60deadhead_hours_questionable%60%2C%0A%20%20%60charter_service_hours%60%2C%0A%20%20%60school_bus_hours%60%2C%0A%20%20%60trains_in_operation%60%2C%0A%20%20%60trains_in_operation_questionable%60%2C%0A%20%20%60train_miles%60%2C%0A%20%20%60train_miles_questionable%60%2C%0A%20%20%60train_revenue_miles%60%2C%0A%20%20%60train_revenue_miles_questionable%60%2C%0A%20%20%60train_deadhead_miles%60%2C%0A%20%20%60train_hours%60%2C%0A%20%20%60train_hours_questionable%60%2C%0A%20%20%60train_revenue_hours%60%2C%0A%20%20%60train_revenue_hours_questionable%60%2C%0A%20%20%60train_deadhead_hours%60%2C%0A%20%20%60unlinked_passenger_trips_upt%60%2C%0A%20%20%60unlinked_passenger_trips_questionable%60%2C%0A%20%20%60ada_upt%60%2C%0A%20%20%60sponsored_service_upt%60%2C%0A%20%20%60passenger_miles%60%2C%0A%20%20%60passenger_miles_questionable%60%2C%0A%20%20%60directional_route_miles%60%2C%0A%20%20%60directional_route_miles_questionable%60%2C%0A%20%20%60brt_non_statutory_mixed_traffic%60%2C%0A%20%20%60mixed_traffic_right_of_way%60%2C%0A%20%20%60days_of_service_operated%60%2C%0A%20%20%60days_not_operated_strikes%60%2C%0A%20%20%60days_not_operated_emergencies%60%2C%0A%20%20%60average_speed%60%2C%0A%20%20%60average_speed_questionable%60%2C%0A%20%20%60average_passenger_trip_length_aptl_%60%2C%0A%20%20%60aptl_questionable%60%2C%0A%20%20%60passengers_per_hour%60%2C%0A%20%20%60passengers_per_hour_questionable%60%0AWHERE%20caseless_one_of(%60report_year%60%2C%20%22",i,"%22)%20limit%2015000")
+#  download.file(url,destfil="temp.csv")
+#  ntd2<-read.csv("./temp.csv",header=T)#additional details and metrics for services available by NTD_ID and UACE
+#  url<-paste0("https://data.transportation.gov/resource/wfz2-eft6.csv?$query=SELECT%0A%20%20%60agency%60%2C%0A%20%20%60city%60%2C%0A%20%20%60state%60%2C%0A%20%20%60ntd_id%60%2C%0A%20%20%60organization_type%60%2C%0A%20%20%60reporter_type%60%2C%0A%20%20%60report_year%60%2C%0A%20%20%60uace_code%60%2C%0A%20%20%60uza_name%60%2C%0A%20%20%60primary_uza_population%60%2C%0A%20%20%60agency_voms%60%2C%0A%20%20%60modes%60%2C%0A%20%20%60mode_names%60%2C%0A%20%20%60facility_type%60%2C%0A%20%20%60pre1940%60%2C%0A%20%20%60_1940s%60%2C%0A%20%20%60_1950s%60%2C%0A%20%20%60_1960s%60%2C%0A%20%20%60_1970s%60%2C%0A%20%20%60_1980s%60%2C%0A%20%20%60_1990s%60%2C%0A%20%20%60_2000s%60%2C%0A%20%20%60_2010s%60%2C%0A%20%20%60_2020s%60%2C%0A%20%20%60total_facilities%60%0AWHERE%20caseless_one_of(%60report_year%60%2C%20%22",i,"%22)%20limit%2010000")
+#  download.file(url,destfil="temp.csv")
+#  ntd3<-read.csv("./temp.csv",header=T)#additional details and metrics for services available by NTD_ID and UACE
+  
+  m<-read.csv("https://raw.githubusercontent.com/grimnr14/geohealthdb/refs/heads/main/mapping_file_uace_bg_fips_2022.csv",header=T)
+  if(i>=2022){
+    ntd1<-read.csv(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i," Metrics.csv"),header=T)
+    ntd2<-read.csv(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i," Service.csv"),header=T)
+    ntd3<-read.csv(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i," Facilities and Stations.csv"),header=T)
+    
+  }else{#not working, cannot extract xlsx out of github downloads
+    download.file(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i,"%20Metrics.xlsx"),destfile="temp.xlsx")
+    
+    ntd1<-read_xlsx("temp.xlsx",sheet=3)
+    ntd1<-read.csv("temp.xlsx")
+    
+    ntd2<-read.csv(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i," Service.csv"),header=T)
+    ntd3<-read.csv(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i," Facilities and Stations.csv"),header=T)
+    
+  }
   
   ntd1<-ntd1[,c("agency","city","state","ntd_id","report_year","uace_code","uza_name",
-                "primary_uza_population","mode","mode_name","type_of_service",
-                "fare_revenues_per_total","fare_revenues_earned",
-                "cost_per_passenger","cost_per_hour","cost_per_passenger_mile",
-                #"passengers_per_hour","passenger_miles",
-                "total_operating_expenses")]
+                "mode","mode_name","type_of_service","fare_revenues_earned","cost_per_hour","passengers_per_hour","passenger_miles","total_operating_expenses")]
   ntd1$ntd_id<-str_pad(ntd1$ntd_id,width=5,side="left",pad="0")
-  ntd2<-ntd2[,c("agency","X_5_digit_ntd_id","city","state","report_year","mode","mode_name",
-                "primary_uza_area_sq_miles","service_area_sq_miles","service_area_population",
-                "actual_vehicles_passenger_car_miles","train_miles","passenger_miles",
-                "passengers_per_hour","actual_vehicles_passenger_car_hours","train_hours")]
+  ntd2<-ntd2[ntd2$time_period=="Annual Total",c("agency","X_5_digit_ntd_id","city","state","report_year",
+                                                "mode","mode_name","agency_voms","mode_voms","service_area_sq_miles","service_area_population","train_miles","train_hours")]
   names(ntd2)<-ifelse(str_detect(names(ntd2),"ntd_id"),"ntd_id",names(ntd2))
   ntd2$ntd_id<-str_pad(ntd2$ntd_id,width=5,side="left",pad="0")
+  ntd2<-ntd2[!duplicated(ntd2),]
   ntd3<-ntd3[,c("agency","ntd_id","city","state","report_year","modes","mode_names",
                 "facility_type","total_facilities","pre1940","X_1940s","X_1950s","X_1960s","X_1970s","X_1980s","X_1990s","X_2000s","X_2010s","X_2020s")]
   names(ntd3)<-ifelse(str_detect(names(ntd3),"modes"),"mode",ifelse(str_detect(names(ntd3),"names"),"mode_name",names(ntd3)))
@@ -116,9 +130,90 @@ for(i in rev(2010:2023)){
   ntd<-merge(ntd,ntd3,by=c("agency","ntd_id","city","state","report_year","mode","mode_name"),all=T)
   ntd<-ntd[!duplicated(ntd),]
   ntd$uace_code<-str_pad(ntd$uace_code,width=5,side="left",pad="0")
+  miss<-ntd[is.na(ntd$uace_code),]
+  outs<-NULL
+  for(j in 1:nrow(miss)){
+    city<-miss[j,"city"]
+    city<-ifelse(city=="","@@",city)
+    city<-city[!is.na(city)]
+    for(k in unique(na.omit(m$uaNAME))){
+      if(str_detect(k,city)){
+        print(j)
+        out<-data.frame(uace=m[m$uaNAME==k,]$uace,
+                        city=miss[j,"city"],
+                        state=miss[j,"state"],
+                        uaNAME=m[m$uaNAME==k,]$uaNAME,
+                        state=substr(m[m$uaNAME==k,]$geoid,1,2))
+        outs<-rbind(outs,out)
+        outs<-outs[!is.na(outs$uace),]
+        outs<-outs[!duplicated(outs),]
+      }
+    }
+  }#recovered ~ 2537/4747 uace
+  miss<-merge(miss,outs,by=c("city","state"),all.x=T)
+  miss<-miss[!is.na(miss$uace),]
+  miss<-miss[!duplicated(miss),]
+  miss$uace_code<-miss$uace
+  miss<-miss[,c(1:(ncol(miss)-3))]
+  ntd<-rbind(ntd,miss)
+  
+  ntd<-ntd[!is.na(ntd$uace_code),]
+  facilities<-ntd[!is.na(ntd$total_facilities),c("ntd_id",#"service_area_population","service_area_sq_miles",
+                                                 "total_facilities","pre1940","X_1940s","X_1950s","X_1960s","X_1970s","X_1980s","X_1990s","X_2000s","X_2010s","X_2020s")]
+  facilities[is.na(facilities)]<-0
+  facilities<-facilities%>%
+    dplyr::group_by(ntd_id)%>%
+    summarise_each(funs=c("sum"))
+  facilities$per_facilities_prior2000<-100*rowSums(facilities[,3:9])/facilities$total_facilities
+  facilities$per_facilities_prior1980<-100*rowSums(facilities[,3:7])/facilities$total_facilities
+  ntd<-ntd[,!names(ntd) %in% c("agency","city","service_area_population","service_area_sq_miles",
+                               "total_facilities","pre1940","X_1940s","X_1950s","X_1960s","X_1970s","X_1980s","X_1990s","X_2000s","X_2010s","X_2020s")]
+  ntd<-ntd[!duplicated(ntd),]
+  ntd<-merge(ntd,facilities[,c("ntd_id","total_facilities","per_facilities_prior1980","per_facilities_prior2000")],by="ntd_id",all.x=T)
+  
+  ntd$bin_bus<-ifelse(str_detect(ntd$mode_name,"Bus")|
+                        str_detect(ntd$mode_name,"Trollybus"),1,0)
+  ntd$bin_demandresponse<-ifelse(str_detect(ntd$mode_name,"Demand Response")|
+                                   str_detect(ntd$mode_name,"Vanpool"),1,0)
+  ntd$bin_light_commuterail<-ifelse(str_detect(ntd$mode_name,"Commuter Rail")|
+                                      str_detect(ntd$mode_name,"Light Rail")|
+                                      str_detect(ntd$mode_name,"Monorail")|
+                                      str_detect(ntd$mode_name,"Streetcar Rail")|
+                                      str_detect(ntd$mode_name,"Hybrid Rail")|
+                                      str_detect(ntd$mode_name,"Tramway"),1,0)
+  ntd$bin_ferry<-ifelse(str_detect(ntd$mode_name,"Ferryboat"),1,0)
+  ntd$bin_directly_operated<-ifelse(ntd$type_of_service=="DO"&!is.na(ntd$type_of_service),1,0)
+  ntd$bin_purchased_transportation<-ifelse(ntd$type_of_service=="PT"&!is.na(ntd$type_of_service),1,0)
+  
+  ntd<-ntd[,!names(ntd) %in% c("mode","mode_name","type_of_service","facility_type")]
+  ntd<-ntd[!duplicated(ntd),]
+  finalsum<-ntd[,c("ntd_id","uace_code",
+                   "bin_bus","bin_demandresponse","bin_light_commuterail","bin_ferry","bin_directly_operated","bin_purchased_transportation",
+                   "fare_revenues_earned","total_operating_expenses","cost_per_hour","train_miles","train_hours","passengers_per_hour","passenger_miles")]
+  finalsum<-finalsum[!duplicated(finalsum),]
+  finalsum[is.na(finalsum)]<-0
+  finalsum<-finalsum[,!names(finalsum) %in% c("ntd_id")]%>%
+    dplyr::group_by(uace_code)%>%
+    summarise_each(funs=c(sum))
+  ntd<-merge(ntd[,!names(ntd) %in% c("bin_bus","bin_demandresponse","bin_light_commuterail","bin_ferry",
+                                     "bin_directly_operated","bin_purchased_transportation",
+                                     "fare_revenues_earned","total_operating_expenses","cost_per_hour",
+                                     "train_miles","train_hours","passengers_per_hour","passenger_miles")],
+             finalsum,by="uace_code",all.x=T)
+  ntd<-ntd[!duplicated(ntd)&!is.na(ntd$uza_name),]
+  
   uace<-tigris::urban_areas(year=2022)#only 2022 should be used
-#  ntd<-merge(uace[,c("UACE10","GEOID10","ALAND10","geometry")],ntd,by.x="UACE10",by.y="uace_code",all.x=T)
-  saveRDS(ntd,paste0("shape_ntd_",i,".rds"))
+  ntd<-merge(as.data.frame(uace[,c("UACE10","GEOID10","ALAND10","NAME10")]),ntd,by.x="UACE10",by.y="uace_code",all.x=T)
+  ntd<-ntd[,!names(ntd) %in% c("geometry")]
+#  ntd<-merge(ntd,m[,c("geoid","uace","name")],by.x="UACE10",by.y="uace",all.x=T)
+  ntd<-ntd[!is.na(ntd$ntd_id),]
+  ntd[is.na(ntd)]<-0
+  ntd<-ntd[,!names(ntd) %in% c("ntd_id")]
+  ntd<-ntd%>%
+    group_by(UACE10,GEOID10,NAME10,state,report_year,uza_name)%>%
+    summarize_each(funs=c("max"))
+  
+  write.table(as.data.frame(ntd),paste0("shape_ntd_",i,".csv"),sep=",",col.names=T,row.names=F)
 }
 
 #Google's MobilityData and GTFS statistics for NTD linked routes
