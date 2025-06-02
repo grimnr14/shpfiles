@@ -1,4 +1,4 @@
-setwd("C:/Users/ckitchen/Downloads")
+#setwd("C:/Users/ckitchen/Downloads")
 setwd("C:/Users/chris/Downloads")
 library(tidyverse)
 library(stringr)
@@ -7,25 +7,31 @@ library(readxl)
 source("C:/Users/chris/OneDrive/Desktop/GeoHealth/scripts/pullACS/pullACS.R")
 
 #NHTSA FARS safety, pedestrians and impairment info: MAY INCLUDE DRUGS, VISION, DISTRACTED DRIVING, WEATHER EVENTS
-for(i in rev(2021:2023)){
+for(i in rev(2012:2023)){
   url<-paste0("https://static.nhtsa.gov/nhtsa/downloads/FARS/",i,"/National/FARS",i,"NationalCSV.zip")#example call to FTP
   download.file(url,destfile="temp.zip")
   unzip("temp.zip")
-  
-  fars1<-read.csv(paste0("./FARS",i,"NationalCSV/accident.csv"),header=T)#scene and location by coordinates
-  fars2<-read.csv(paste0("./FARS",i,"NationalCSV/vehicle.csv"),header=T)#vehicle characteristics
-  fars3<-read.csv(paste0("./FARS",i,"NationalCSV/person.csv"),header=T)#victim characteristics
-  names(fars1)<-str_remove_all(names(fars1),"ï..")
-  names(fars2)<-str_remove_all(names(fars2),"ï..")
-  names(fars3)<-str_remove_all(names(fars3),"ï..")
+  if(i>=2020){
+    fars1<-read.csv(paste0("./FARS",i,"NationalCSV/accident.csv"),header=T)#scene and location by coordinates
+    fars2<-read.csv(paste0("./FARS",i,"NationalCSV/vehicle.csv"),header=T)#vehicle characteristics
+    fars3<-read.csv(paste0("./FARS",i,"NationalCSV/person.csv"),header=T)#victim characteristics
+    names(fars1)<-str_remove_all(names(fars1),"ï..")
+    names(fars2)<-str_remove_all(names(fars2),"ï..")
+    names(fars3)<-str_remove_all(names(fars3),"ï..")
+  }else{
+    fars1<-read.csv(paste0("./accident.csv"),header=T)#scene and location by coordinates
+    fars2<-read.csv(paste0("./vehicle.csv"),header=T)#vehicle characteristics
+    fars3<-read.csv(paste0("./person.csv"),header=T)#victim characteristics
+  }
   
   fars1<-fars1[,c("STATE","COUNTY","STATENAME","COUNTYNAME","ST_CASE","HARM_EVNAME","FATALS","PEDS","VE_TOTAL","TYP_INT","MONTHNAME","YEAR","LATITUDE","LONGITUD")]
-  fars2<-fars2[,c("ST_CASE","HIT_RUN","L_STATUSNAME","L_TYPENAME","CDL_STATNAME","VPICBODYCLASSNAME")]
+  fars2<-fars2[,c("ST_CASE","HIT_RUN","L_STATUSNAME","L_TYPENAME","CDL_STATNAME",ifelse(i>=2020,"VPICBODYCLASSNAME","BODY_TYPNAME"))]
+  names(fars2)<-c("ST_CASE","HIT_RUN","L_STATUSNAME","L_TYPENAME","CDL_STATNAME","VPICBODYCLASSNAME")
   fars2$VPICBODYCLASSNAME<-ifelse(str_detect(fars2$VPICBODYCLASSNAME,"Bus"),"Bus",
                                   ifelse(str_detect(fars2$VPICBODYCLASSNAME,"Motorcycle"),"Motorcycle",
                                          ifelse(str_detect(fars2$VPICBODYCLASSNAME,"Off-road"),"Offroad",
                                                 ifelse(str_detect(fars2$VPICBODYCLASSNAME,"SUV")|str_detect(fars2$VPICBODYCLASSNAME,"SUT")|str_detect(fars2$VPICBODYCLASSNAME,"CUV"),"SUV",
-                                                       ifelse(str_detect(fars2$VPICBODYCLASSNAME,"Tractor"),"TractorTrailor",
+                                                       ifelse(str_detect(fars2$VPICBODYCLASSNAME,"Tractor")|str_detect(fars2$VPICBODYCLASSNAME,"heavy truck")|str_detect(fars2$VPICBODYCLASSNAME,"single-unit")|str_detect(fars2$VPICBODYCLASSNAME,"tractor"),"TractorTrailor",
                                                               ifelse(str_detect(fars2$VPICBODYCLASSNAME,"Truck")|str_detect(fars2$VPICBODYCLASSNAME,"Pickup")|str_detect(fars2$VPICBODYCLASSNAME,"Wagon"),"TruckPickup",
                                                                      ifelse(str_detect(fars2$VPICBODYCLASSNAME,"Van")|str_detect(fars2$VPICBODYCLASSNAME,"Minivan")|str_detect(fars2$VPICBODYCLASSNAME,"Motorhome"),"Van",
                                                                             ifelse(str_detect(fars2$VPICBODYCLASSNAME,"Sedan")|str_detect(fars2$VPICBODYCLASSNAME,"Roadster")|str_detect(fars2$VPICBODYCLASSNAME,"Convertible")|str_detect(fars2$VPICBODYCLASSNAME,"Coupe"),"PassengerCar","OtherVehicle"
@@ -39,7 +45,7 @@ for(i in rev(2021:2023)){
   ex<-spread(fars2,key=VPICBODYCLASSNAME,value=value,fill=0)
   ex$value<-1
   ex<-spread(ex,key=license,value=value,fill=0)
-  fars2<-aggregate(data=ex,cbind(HIT_RUN,Bus,Motorcycle,Offroad,PassengerCar,SUV,TractorTrailor,TruckPickup,Van,CDL,FullRegular,OtherSuspended)~ST_CASE,FUN="sum")
+  fars2<-aggregate(data=ex,cbind(HIT_RUN,Bus,Motorcycle,PassengerCar,TractorTrailor,TruckPickup,Van,CDL,FullRegular,OtherSuspended)~ST_CASE,FUN="sum")
   
   fars3<-fars3[,c("ST_CASE","VEH_NO","PER_NO","AGE","SEXNAME","PER_TYPNAME","INJ_SEVNAME","ALC_RES","ALC_RESNAME","DRUGSNAME")]
   fars3$driver_age<-ifelse(fars3$PER_TYPNAME %in% c("Driver of a Motor Vehicle In-Transport"),fars3$AGE,0)
@@ -53,8 +59,8 @@ for(i in rev(2021:2023)){
   sex<-fars3[,c("ST_CASE","VEH_NO","driver_sex","value")]
   sex<-spread(data=sex[!duplicated(sex),],key=driver_sex,value=value,fill=0)
   fars3<-merge(fars3,sex[,c("ST_CASE","VEH_NO","Female","Male")],by=c("ST_CASE","VEH_NO"),all.x=T)
-  fars3$driver_bac<-ifelse(fars3$PER_TYPNAME=="Driver of a Motor Vehicle In-Transport"&fars3$ALC_RES>=996,fars3$ALC_RES,0)
-  fars3$driver_fatal_bac<-ifelse(fars3$PER_TYPNAME=="Driver of a Motor Vehicle In-Transport"&fars3$ALC_RES>=996&fars3$INJ_SEVNAME=="Fatal Injury (K)",fars3$ALC_RES,0)
+  fars3$driver_bac<-ifelse(fars3$PER_TYPNAME=="Driver of a Motor Vehicle In-Transport"&fars3$ALC_RES<995,fars3$ALC_RES,0)
+  fars3$driver_fatal_bac<-ifelse(fars3$PER_TYPNAME=="Driver of a Motor Vehicle In-Transport"&fars3$ALC_RES<995&fars3$INJ_SEVNAME=="Fatal Injury (K)",fars3$ALC_RES,0)
   fars3$driver_drug_detect<-ifelse(fars3$PER_TYPNAME=="Driver of a Motor Vehicle In-Transport"&fars3$DRUGSNAME=="Yes (drugs involved)",1,0)
   fars3$driver_fatal_drug_detect<-ifelse(fars3$PER_TYPNAME=="Driver of a Motor Vehicle In-Transport"&fars3$DRUGSNAME=="Yes (drugs involved)"&fars3$INJ_SEVNAME=="Fatal Injury (K)",1,0)
   fars3<-fars3[,c("ST_CASE","VEH_NO","non_motor_peds","driver_age","avg_age_in_vehicle","driver_bac","driver_fatal_bac","driver_drug_detect","driver_fatal_drug_detect","Female","Male")]
@@ -70,74 +76,111 @@ for(i in rev(2021:2023)){
   
   outs<-NULL
   for(j in unique(fars$ST_CASE)){
-    ex<-fars[fars$ST_CASE==j,] %>%
-      st_as_sf(coords = c("LATITUDE","LONGITUD"), crs = "NAD83") %>%
-      group_by(ST_CASE) %>%
-      summarise(geometry = st_combine(geometry)) 
-    outs<-rbind(outs,ex)
+    ex<-fars[fars$ST_CASE==j,]
+    if(ex$LATITUDE[1]>(-180)&
+       ex$LATITUDE[1]<(180)&
+       ex$LONGITUD[1]>(-180)&
+       ex$LONGITUD[1]<(180)
+    ){
+      ex<-censusxy::cxy_geography(lat=as.numeric(as.character(ex$LATITUDE[1])),lon=as.numeric(as.character(ex$LONGITUD[1])),
+                                  benchmark="Public_AR_Current")
+      if(!is.null(ex)){
+        ex<-data.frame(GEOID=ex$X2020.Census.Blocks.GEOID,ST_CASE=j)
+        outs<-plyr::rbind.fill(outs,ex)
+      }
+    }
     print(j)
   }
-#  outs<-merge(outs,fars,by="ST_CASE",all.x=T)
-#  saveRDS(outs,paste0("fars_shapes_",i,".rds"))
-  write.table(fars,paste0("fars_shapes_",i,".csv"),sep=",",col.names=T,row.names=F)
+  outs<-merge(outs,fars,by="ST_CASE",all.x=T)
+  write.table(outs,paste0("fars_shapes_",i,".csv"),sep=",",col.names=T,row.names=F)
   
 }
 
 #FTA NTD transit access, expense, ridership and infrastructure data: MAY INCLUDE VEHICLE AGE AND WEAR (MILES) BY AGENCY
-for(i in rev(2022:2023)){
-#  url<-paste0("https://data.transportation.gov/resource/ekg5-frzt.csv?$query=SELECT%0A%20%20%60agency%60%2C%0A%20%20%60city%60%2C%0A%20%20%60state%60%2C%0A%20%20%60ntd_id%60%2C%0A%20%20%60organization_type%60%2C%0A%20%20%60reporter_type%60%2C%0A%20%20%60report_year%60%2C%0A%20%20%60uace_code%60%2C%0A%20%20%60uza_name%60%2C%0A%20%20%60primary_uza_population%60%2C%0A%20%20%60agency_voms%60%2C%0A%20%20%60mode%60%2C%0A%20%20%60mode_name%60%2C%0A%20%20%60type_of_service%60%2C%0A%20%20%60mode_voms%60%2C%0A%20%20%60fare_revenues_per_unlinked%60%2C%0A%20%20%60fare_revenues_per_unlinked_1%60%2C%0A%20%20%60fare_revenues_per_total%60%2C%0A%20%20%60fare_revenues_per_total_1%60%2C%0A%20%20%60cost_per_hour%60%2C%0A%20%20%60cost_per_hour_questionable%60%2C%0A%20%20%60passengers_per_hour%60%2C%0A%20%20%60passengers_per_hour_1%60%2C%0A%20%20%60cost_per_passenger%60%2C%0A%20%20%60cost_per_passenger_1%60%2C%0A%20%20%60cost_per_passenger_mile%60%2C%0A%20%20%60cost_per_passenger_mile_1%60%2C%0A%20%20%60fare_revenues_earned%60%2C%0A%20%20%60fare_revenues_earned_1%60%2C%0A%20%20%60total_operating_expenses%60%2C%0A%20%20%60total_operating_expenses_1%60%2C%0A%20%20%60unlinked_passenger_trips%60%2C%0A%20%20%60unlinked_passenger_trips_1%60%2C%0A%20%20%60vehicle_revenue_hours%60%2C%0A%20%20%60vehicle_revenue_hours_1%60%2C%0A%20%20%60passenger_miles%60%2C%0A%20%20%60passenger_miles_questionable%60%2C%0A%20%20%60vehicle_revenue_miles%60%2C%0A%20%20%60vehicle_revenue_miles_1%60%0AWHERE%20caseless_one_of(%60report_year%60%2C%20%22",i,"%22)%20limit%205000")
-#  download.file(url,destfile="temp.csv")#MUST LOOP THROUGH THE NDT ASSET NAMES WHICH VARY BY YEAR
-#  ntd1<-read.csv("./temp.csv",header=T)#multiple transit systems to uace. needs mapping to fips codes and zcta5
-#  url<-paste0("https://data.transportation.gov/resource/wwdp-t4re.csv?$query=SELECT%0A%20%20%60agency%60%2C%0A%20%20%60_5_digit_ntd_id%60%2C%0A%20%20%60reporter_type%60%2C%0A%20%20%60organization_type%60%2C%0A%20%20%60city%60%2C%0A%20%20%60state%60%2C%0A%20%20%60report_year%60%2C%0A%20%20%60agency_voms%60%2C%0A%20%20%60mode%60%2C%0A%20%20%60mode_name%60%2C%0A%20%20%60type_of_service%60%2C%0A%20%20%60mode_voms%60%2C%0A%20%20%60mode_voms_questionable%60%2C%0A%20%20%60primary_uza_code%60%2C%0A%20%20%60primary_uza_name%60%2C%0A%20%20%60primary_uza_area_sq_miles%60%2C%0A%20%20%60primary_uza_population%60%2C%0A%20%20%60service_area_sq_miles%60%2C%0A%20%20%60service_area_population%60%2C%0A%20%20%60time_period%60%2C%0A%20%20%60time_service_begins%60%2C%0A%20%20%60time_service_ends%60%2C%0A%20%20%60actual_vehicles_passenger_car_miles%60%2C%0A%20%20%60vehicle_miles_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_car_revenue_miles%60%2C%0A%20%20%60vehicle_revenue_miles_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_deadhead_miles%60%2C%0A%20%20%60deadhead_miles_questionable%60%2C%0A%20%20%60scheduled_vehicles_passenger_car_revenue_miles%60%2C%0A%20%20%60scheduled_revenue_miles_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_car_hours%60%2C%0A%20%20%60vehicle_hours_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_car_revenue_hours%60%2C%0A%20%20%60vehicle_revenue_hours_questionable%60%2C%0A%20%20%60actual_vehicles_passenger_car_deadhead_hours%60%2C%0A%20%20%60deadhead_hours_questionable%60%2C%0A%20%20%60charter_service_hours%60%2C%0A%20%20%60school_bus_hours%60%2C%0A%20%20%60trains_in_operation%60%2C%0A%20%20%60trains_in_operation_questionable%60%2C%0A%20%20%60train_miles%60%2C%0A%20%20%60train_miles_questionable%60%2C%0A%20%20%60train_revenue_miles%60%2C%0A%20%20%60train_revenue_miles_questionable%60%2C%0A%20%20%60train_deadhead_miles%60%2C%0A%20%20%60train_hours%60%2C%0A%20%20%60train_hours_questionable%60%2C%0A%20%20%60train_revenue_hours%60%2C%0A%20%20%60train_revenue_hours_questionable%60%2C%0A%20%20%60train_deadhead_hours%60%2C%0A%20%20%60unlinked_passenger_trips_upt%60%2C%0A%20%20%60unlinked_passenger_trips_questionable%60%2C%0A%20%20%60ada_upt%60%2C%0A%20%20%60sponsored_service_upt%60%2C%0A%20%20%60passenger_miles%60%2C%0A%20%20%60passenger_miles_questionable%60%2C%0A%20%20%60directional_route_miles%60%2C%0A%20%20%60directional_route_miles_questionable%60%2C%0A%20%20%60brt_non_statutory_mixed_traffic%60%2C%0A%20%20%60mixed_traffic_right_of_way%60%2C%0A%20%20%60days_of_service_operated%60%2C%0A%20%20%60days_not_operated_strikes%60%2C%0A%20%20%60days_not_operated_emergencies%60%2C%0A%20%20%60average_speed%60%2C%0A%20%20%60average_speed_questionable%60%2C%0A%20%20%60average_passenger_trip_length_aptl_%60%2C%0A%20%20%60aptl_questionable%60%2C%0A%20%20%60passengers_per_hour%60%2C%0A%20%20%60passengers_per_hour_questionable%60%0AWHERE%20caseless_one_of(%60report_year%60%2C%20%22",i,"%22)%20limit%2015000")
-#  download.file(url,destfil="temp.csv")
-#  ntd2<-read.csv("./temp.csv",header=T)#additional details and metrics for services available by NTD_ID and UACE
-#  url<-paste0("https://data.transportation.gov/resource/wfz2-eft6.csv?$query=SELECT%0A%20%20%60agency%60%2C%0A%20%20%60city%60%2C%0A%20%20%60state%60%2C%0A%20%20%60ntd_id%60%2C%0A%20%20%60organization_type%60%2C%0A%20%20%60reporter_type%60%2C%0A%20%20%60report_year%60%2C%0A%20%20%60uace_code%60%2C%0A%20%20%60uza_name%60%2C%0A%20%20%60primary_uza_population%60%2C%0A%20%20%60agency_voms%60%2C%0A%20%20%60modes%60%2C%0A%20%20%60mode_names%60%2C%0A%20%20%60facility_type%60%2C%0A%20%20%60pre1940%60%2C%0A%20%20%60_1940s%60%2C%0A%20%20%60_1950s%60%2C%0A%20%20%60_1960s%60%2C%0A%20%20%60_1970s%60%2C%0A%20%20%60_1980s%60%2C%0A%20%20%60_1990s%60%2C%0A%20%20%60_2000s%60%2C%0A%20%20%60_2010s%60%2C%0A%20%20%60_2020s%60%2C%0A%20%20%60total_facilities%60%0AWHERE%20caseless_one_of(%60report_year%60%2C%20%22",i,"%22)%20limit%2010000")
-#  download.file(url,destfil="temp.csv")
-#  ntd3<-read.csv("./temp.csv",header=T)#additional details and metrics for services available by NTD_ID and UACE
-  
+for(i in rev(2012:2023)){
   m<-read.csv("https://raw.githubusercontent.com/grimnr14/geohealthdb/refs/heads/main/mapping_file_uace_bg_fips_2022.csv",header=T)
+  ntd1<-read.csv(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i," Metrics.csv"),header=T)
+  ntd2<-read.csv(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i," Service.csv"),header=T)
+  ntd3<-read.csv(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i," Facilities and Stations.csv"),header=T)
+
   if(i>=2022){
-    ntd1<-read.csv(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i," Metrics.csv"),header=T)
-    ntd2<-read.csv(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i," Service.csv"),header=T)
-    ntd3<-read.csv(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i," Facilities and Stations.csv"),header=T)
-    
-  }else{#not working, cannot extract xlsx out of github downloads
-    download.file(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i,"%20Metrics.xlsx"),destfile="temp.xlsx")
-    
-    ntd1<-read_xlsx("temp.xlsx",sheet=3)
-    ntd1<-read.csv("temp.xlsx")
-    
-    ntd2<-read.csv(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i," Service.csv"),header=T)
-    ntd3<-read.csv(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",i," Facilities and Stations.csv"),header=T)
-    
+    #start process here with split at 2022
+    ntd1<-ntd1[,c("agency","city","state","ntd_id","report_year","uace_code",
+                  "mode","mode_name","type_of_service","fare_revenues_earned","cost_per_hour","passengers_per_hour","passenger_miles","total_operating_expenses")]
+    ntd1$ntd_id<-str_pad(ntd1$ntd_id,width=5,side="left",pad="0")
+    ntd2<-ntd2[ntd2$time_period=="Annual Total",c("agency","X_5_digit_ntd_id","city","state","report_year",
+                                                  "mode","mode_name","agency_voms","mode_voms","service_area_sq_miles","service_area_population","train_miles","train_hours")]
+    names(ntd2)<-ifelse(str_detect(names(ntd2),"ntd_id"),"ntd_id",names(ntd2))
+    ntd2$ntd_id<-str_pad(ntd2$ntd_id,width=5,side="left",pad="0")
+    ntd2<-ntd2[!duplicated(ntd2),]
+    ntd3<-ntd3[,c("agency","ntd_id","city","state","report_year","modes","mode_names",
+                  "facility_type","total_facilities","pre1940","X_1940s","X_1950s","X_1960s","X_1970s","X_1980s","X_1990s","X_2000s","X_2010s","X_2020s")]
+    names(ntd3)<-ifelse(str_detect(names(ntd3),"modes"),"mode",ifelse(str_detect(names(ntd3),"names"),"mode_name",names(ntd3)))
+    ntd3$ntd_id<-str_pad(ntd3$ntd_id,width=5,side="left",pad="0")
+  }else{
+    uas<-read.csv(paste0("https://raw.githubusercontent.com/grimnr14/raw/refs/heads/main/",2022," Metrics.csv"),header=T)[,c("ntd_id","uace_code")]
+    uas<-uas[!duplicated(uas),]
+
+    summary(as.factor(str_detect(ntd1$NTD.ID,"-")))
+    ntd1$NTD.ID<-ifelse(str_detect(ntd1$NTD.ID,"-")&!is.na(ntd1$NTD.ID),
+                        substr(ntd1$NTD.ID,str_locate(ntd1$NTD.ID,"-")[[1]]+1,nchar(ntd1$NTD.ID)),
+                        ntd1$NTD.ID)
+    names(ntd1)<-tolower(names(ntd1))
+    names(ntd1)<-str_replace_all(names(ntd1),"[.]","_")
+    names(ntd1)<-str_replace_all(names(ntd1),"__","_")
+    names(ntd1)<-str_replace_all(names(ntd1),"__","_")
+    ntd1$type_of_service<-ntd1$tos
+    ntd1$mode_name<-ifelse(ntd1$mode %in% c("CB","MB","TB","RB","DB"),"Bus",
+                           ifelse(ntd1$mode %in% c("DR","VP"),"Demand Response",
+                                  ifelse(ntd1$mode %in% c("CR","LR","MG","TR","SR","HR"),"Commuter Rail",
+                                         ifelse(ntd1$mode %in% c("FB"),"Ferryboat","Other"
+                           ))))
+    ntd1<-merge(ntd1,uas,by="ntd_id",all.x=T)
+    ntd1<-ntd1[!duplicated(ntd1),]
+    #"report_year",
+    ntd1<-ntd1[,c("agency","city","state","ntd_id","uace_code",
+                  "type_of_service","mode","mode_name","fare_revenues_earned","cost_per_hour","passengers_per_hour","passenger_miles","total_operating_expenses")]
+    names(ntd2)<-tolower(names(ntd2))
+    names(ntd2)<-str_replace_all(names(ntd2),"[.]","_")
+    names(ntd2)<-str_replace_all(names(ntd2),"__","_")
+    names(ntd2)<-str_replace_all(names(ntd2),"__","_")
+    ntd2$mode_name<-ifelse(ntd2$mode %in% c("CB","MB","TB","RB","DB"),"Bus",
+                           ifelse(ntd2$mode %in% c("DR","VP"),"Demand Response",
+                                  ifelse(ntd2$mode %in% c("CR","LR","MG","TR","SR","HR"),"Commuter Rail",
+                                         ifelse(ntd2$mode %in% c("FB"),"Ferryboat","Other"
+                                         ))))
+    #"report_year","service_area_sq_miles","service_area_population",
+    ntd2<-ntd2[,c("agency","ntd_id","city","state",
+                  "mode","mode_name","agency_voms","mode_voms","train_miles","train_hours")]
+    names(ntd3)<-tolower(names(ntd3))
+    names(ntd3)<-str_replace_all(names(ntd3),"[.]","_")
+    names(ntd3)<-str_replace_all(names(ntd3),"__","_")
+    names(ntd3)<-str_replace_all(names(ntd3),"__","_")
+    ntd3$mode_name<-ifelse(ntd3$mode %in% c("CB","MB","TB","RB","DB"),"Bus",
+                           ifelse(ntd3$mode %in% c("DR","VP"),"Demand Response",
+                                  ifelse(ntd3$mode %in% c("CR","LR","MG","TR","SR","HR"),"Commuter Rail",
+                                         ifelse(ntd3$mode %in% c("FB"),"Ferryboat","Other"
+                                         ))))
+    #"report_year"
+    ntd3<-ntd3[,c("agency","ntd_id","city","state","modes","mode_name",
+                  "facility_type","total_facilities","pre1940","x1940_s","x1950_s","x1960_s","x1970_s","x1980_s","x1990_s","x2000_s","x2010_s")]
+    names(ntd3)<-c("agency","ntd_id","city","state","mode","mode_name","facility_type","total_facilities","pre1940","X_1940s","X_1950s","X_1960s","X_1970s","X_1980s","X_1990s","X_2000s","X_2010s")
   }
   
-  ntd1<-ntd1[,c("agency","city","state","ntd_id","report_year","uace_code","uza_name",
-                "mode","mode_name","type_of_service","fare_revenues_earned","cost_per_hour","passengers_per_hour","passenger_miles","total_operating_expenses")]
-  ntd1$ntd_id<-str_pad(ntd1$ntd_id,width=5,side="left",pad="0")
-  ntd2<-ntd2[ntd2$time_period=="Annual Total",c("agency","X_5_digit_ntd_id","city","state","report_year",
-                                                "mode","mode_name","agency_voms","mode_voms","service_area_sq_miles","service_area_population","train_miles","train_hours")]
-  names(ntd2)<-ifelse(str_detect(names(ntd2),"ntd_id"),"ntd_id",names(ntd2))
-  ntd2$ntd_id<-str_pad(ntd2$ntd_id,width=5,side="left",pad="0")
-  ntd2<-ntd2[!duplicated(ntd2),]
-  ntd3<-ntd3[,c("agency","ntd_id","city","state","report_year","modes","mode_names",
-                "facility_type","total_facilities","pre1940","X_1940s","X_1950s","X_1960s","X_1970s","X_1980s","X_1990s","X_2000s","X_2010s","X_2020s")]
-  names(ntd3)<-ifelse(str_detect(names(ntd3),"modes"),"mode",ifelse(str_detect(names(ntd3),"names"),"mode_name",names(ntd3)))
-  ntd3$ntd_id<-str_pad(ntd3$ntd_id,width=5,side="left",pad="0")
-  
-  ntd<-merge(ntd1,ntd2,by=c("agency","ntd_id","city","state","report_year","mode","mode_name"),all=T)
+  ntd<-merge(ntd1,ntd2,by=c("agency","ntd_id","city","state","mode","mode_name"),all=T)
   ntd<-ntd[!duplicated(ntd),]
-  ntd<-merge(ntd,ntd3,by=c("agency","ntd_id","city","state","report_year","mode","mode_name"),all=T)
+  ntd<-merge(ntd,ntd3,by=c("agency","ntd_id","city","state","mode","mode_name"),all=T)
   ntd<-ntd[!duplicated(ntd),]
   ntd$uace_code<-str_pad(ntd$uace_code,width=5,side="left",pad="0")
-  miss<-ntd[is.na(ntd$uace_code),]
+  miss<-ntd[is.na(ntd$uace_code)&!is.na(ntd$city),]
   outs<-NULL
   for(j in 1:nrow(miss)){
     city<-miss[j,"city"]
+    state<-miss[j,"state"]
     city<-ifelse(city=="","@@",city)
     city<-city[!is.na(city)]
     for(k in unique(na.omit(m$uaNAME))){
-      if(str_detect(k,city)){
+      if(str_detect(k,city)&str_detect(k,state)){
         print(j)
         out<-data.frame(uace=m[m$uaNAME==k,]$uace,
                         city=miss[j,"city"],
@@ -149,7 +192,7 @@ for(i in rev(2022:2023)){
         outs<-outs[!duplicated(outs),]
       }
     }
-  }#recovered ~ 2537/4747 uace
+  }#recovered ~ 1080/4747 uace
   miss<-merge(miss,outs,by=c("city","state"),all.x=T)
   miss<-miss[!is.na(miss$uace),]
   miss<-miss[!duplicated(miss),]
@@ -158,16 +201,16 @@ for(i in rev(2022:2023)){
   ntd<-rbind(ntd,miss)
   
   ntd<-ntd[!is.na(ntd$uace_code),]
-  facilities<-ntd[!is.na(ntd$total_facilities),c("ntd_id",#"service_area_population","service_area_sq_miles",
-                                                 "total_facilities","pre1940","X_1940s","X_1950s","X_1960s","X_1970s","X_1980s","X_1990s","X_2000s","X_2010s","X_2020s")]
+  facilities<-ntd[!is.na(ntd$total_facilities),names(ntd) %in% c("ntd_id","total_facilities","pre1940","X_1940s","X_1950s","X_1960s","X_1970s","X_1980s","X_1990s","X_2000s","X_2010s","X_2020s")]
+
   facilities[is.na(facilities)]<-0
   facilities<-facilities%>%
     dplyr::group_by(ntd_id)%>%
     summarise_each(funs=c("sum"))
   facilities$per_facilities_prior2000<-100*rowSums(facilities[,3:9])/facilities$total_facilities
   facilities$per_facilities_prior1980<-100*rowSums(facilities[,3:7])/facilities$total_facilities
-  ntd<-ntd[,!names(ntd) %in% c("agency","city","service_area_population","service_area_sq_miles",
-                               "total_facilities","pre1940","X_1940s","X_1950s","X_1960s","X_1970s","X_1980s","X_1990s","X_2000s","X_2010s","X_2020s")]
+  
+  ntd<-ntd[,!names(ntd) %in% c("agency","city","total_facilities","pre1940","X_1940s","X_1950s","X_1960s","X_1970s","X_1980s","X_1990s","X_2000s","X_2010s","X_2020s")]
   ntd<-ntd[!duplicated(ntd),]
   ntd<-merge(ntd,facilities[,c("ntd_id","total_facilities","per_facilities_prior1980","per_facilities_prior2000")],by="ntd_id",all.x=T)
   
@@ -200,7 +243,7 @@ for(i in rev(2022:2023)){
                                      "fare_revenues_earned","total_operating_expenses","cost_per_hour",
                                      "train_miles","train_hours","passengers_per_hour","passenger_miles")],
              finalsum,by="uace_code",all.x=T)
-  ntd<-ntd[!duplicated(ntd)&!is.na(ntd$uza_name),]
+  ntd<-ntd[!duplicated(ntd)&!is.na(ntd$uace_code),]
   
   uace<-tigris::urban_areas(year=2022)#only 2022 should be used
   ntd<-merge(as.data.frame(uace[,c("UACE10","GEOID10","ALAND10","NAME10")]),ntd,by.x="UACE10",by.y="uace_code",all.x=T)
@@ -210,7 +253,7 @@ for(i in rev(2022:2023)){
   ntd[is.na(ntd)]<-0
   ntd<-ntd[,!names(ntd) %in% c("ntd_id")]
   ntd<-ntd%>%
-    group_by(UACE10,GEOID10,NAME10,state,report_year,uza_name)%>%
+    group_by(UACE10,GEOID10,NAME10,state)%>%
     summarize_each(funs=c("max"))
   
   write.table(as.data.frame(ntd),paste0("shape_ntd_",i,".csv"),sep=",",col.names=T,row.names=F)
@@ -368,10 +411,13 @@ for(y in years){
     ntd<-ntd[!is.na(ntd$agency),]
     ntd<-ntd[,c("UACE10","ntd_id","geometry")]
     uace<-tigris::urban_areas()
-    uace$state<-substr(uace$NAME10,nchar(uace$NAME10)-1,nchar(uace$NAME10))
-    uace<-merge(uace,fips_codes[!duplicated(fips_codes[,c("state","state_code")]),],by.x="state",by.y="state",all.x=T)
-    uace<-as.data.frame(uace[,c("UACE10","state","state_code")])
-    ntd<-merge(ntd,uace[,c("UACE10","state","state_code")],by.x="UACE10",by.y="UACE10",all.x=T)
+    map<-read.csv("https://raw.githubusercontent.com/grimnr14/geohealthdb/refs/heads/main/mapping_file_uace_bg_fips_2022.csv",header=T)
+    uace<-merge(uace,map[,c("uace","geoid")],by.x="GEOID10",by.y="uace",all.x=T)
+    uace$state_code<-substr(uace$geoid,1,2)
+#    uace$state<-substr(uace$NAME10,nchar(uace$NAME10)-1,nchar(uace$NAME10))
+#    uace<-merge(uace,fips_codes[!duplicated(fips_codes[,c("state","state_code")]),],by.x="state",by.y="state",all.x=T)
+#    uace<-as.data.frame(uace[,c("UACE10","state","state_code")])
+    ntd<-merge(ntd,uace[,c("UACE10","state_code")],by.x="UACE10",by.y="UACE10",all.x=T)
     remove(uace)
     fars<-readRDS(paste0("fars_shapes_",y,".rds"))
     fars<-fars[!is.na(fars$HARM_EVNAME),]
